@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+        .code-display {
+            width: 50%;
+            white-space: pre-wrap;
+        }
+        .user-input {
+            width: 50%;
+        }
+        .user-input input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .user-input input[type="submit"] {
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        .user-input input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        #result, #seedHash {
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #e8e8e8;
+            border-radius: 4px;
+            font-size: 1.2em;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+        <pre class="code-display">
+async function validate(seed, index) {
+    const tigerStr = "tiger";
+    const dragonStr = "dragon";
+    const dragonSeed = seed + dragonStr + index;
+    const tigerSeed = seed + tigerStr + index;
+    let digest = await getHashByte(dragonSeed);
+    let number = BigInt('0x' + Array.from(digest).map(b => b.toString(16).padStart(2, '0')).join(''));
+    number = number % BigInt(51);
+    let dragon = number == 0 ? 51 : Number(number);
+    digest = await getHashByte(tigerSeed);
+    number = BigInt('0x' + Array.from(digest).map(b => b.toString(16).padStart(2, '0')).join(''));
+    number = number % BigInt(50);
+    let tiger = number == 0 ? 50 : Number(number);
+    let poker = await getPoker();
+    let dragonPoker = poker[dragon];
+    poker.splice(dragon, 1);
+    let tigerPoker = poker[tiger];
+    console.log("dragonPoker:", dragonPoker);
+    console.log("tigerPoker:", tigerPoker);
+    console.log("dragon:", dragon);
+    console.log("tiger:", tiger);
+    return { dragonPoker, tigerPoker }
+}
+
+async function getSeedHash(seed) {
+    let digest = await getHashByte(seed);
+    return Array.from(digest).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getHashByte(seed) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(seed);
+    const hash = await window.crypto.subtle.digest('SHA-256', data);
+    return new Uint8Array(hash);
+}
+
+async function getPoker() {
+    const pokerColor = "♠♥♣♦";
+    const pokerNumber = "A23456789XJQK";
+    let poker = [];
+    for (let i = 0; i < pokerNumber.length; i++) {
+        for (let j = 0; j < pokerColor.length; j++) {
+            poker.push(pokerColor.charAt(j) + pokerNumber.charAt(i));
+        }
+    }
+    return poker;
+}
+        </pre>
+    <div class="user-input">
+        <form id="inputForm">
+            <label for="seed">Seed:</label><br>
+            <input type="text" id="seed" name="seed"><br>
+            <label for="index">Index:</label><br>
+            <input type="text" id="index" name="index"><br>
+            <label for="gameResult">Game Result:</label><br>
+            <input type="text" id="gameResult" name="gameResult" readonly><br>
+            <label for="seedHash">Seed Hash:</label><br>
+            <input type="text" id="seedHash" name="seedHash" readonly><br>
+            <input type="submit" value="validate">
+        </form>
+        <div id="result">
+            <div class="result-title">开奖结果</div>
+            <div id="dragonResult"></div>
+            <div id="tigerResult"></div>
+        </div>
+    </div>
+</div>
+<script src="validate.js"></script>
+<script>
+    document.querySelector('#inputForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const seed = document.querySelector('#seed').value;
+        const index = document.querySelector('#index').value;
+        try {
+            const result = await validate(seed, index);
+            document.querySelector('#dragonResult').innerHTML = 'dragon: ' + result.dragonPoker;
+            document.querySelector('#tigerResult').innerHTML = 'tiger: ' + result.tigerPoker;
+        } catch (error) {
+            console.error(error);
+        }
+    });
+    window.addEventListener('DOMContentLoaded', async (event) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameResult = urlParams.get('result');
+        const seed = urlParams.get('seed');
+        const index = urlParams.get('index');
+        const pokerResult = await getPokerFromResult(gameResult);
+        document.querySelector('#gameResult').value = pokerResult;
+        document.querySelector('#seed').value = seed;
+        document.querySelector('#index').value = index;
+
+        // After setting the seed value, manually calculate the seedHash
+        try {
+            const seedHash = await getSeedHash(seed);
+            document.querySelector('#seedHash').value = seedHash;
+        } catch (error) {
+            console.error(error);
+        }
+    });
+
+</script>
+</body>
+</html>
